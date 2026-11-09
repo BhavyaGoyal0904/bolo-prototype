@@ -1,0 +1,282 @@
+<title>Bolo Voice Composer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone mock on the left, step rail with annotations on the right; stacks on phones. */
+:root {
+  --bg: #eef0f6;
+  --panel: #ffffff;
+  --ink: #1b1f3b;
+  --muted: #5d6178;
+  --line: #d9dbe7;
+  --accent: #d9701a;
+  --accent-soft: #fbe9d8;
+  --teal: #0e7c70;
+  --screen: #ffffff;
+  --bubble: #f1f2f7;
+  --wave: #d9701a;
+  --font-ui: "Hind", "Noto Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12142a; --panel: #1b1e38; --ink: #eceef8; --muted: #a3a7c2; --line: #33375a;
+    --accent: #f0903c; --accent-soft: #3a2a1c; --teal: #3cc0ae; --screen: #0f1124; --bubble: #23264a; --wave: #f0903c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12142a; --panel: #1b1e38; --ink: #eceef8; --muted: #a3a7c2; --line: #33375a;
+  --accent: #f0903c; --accent-soft: #3a2a1c; --teal: #3cc0ae; --screen: #0f1124; --bubble: #23264a; --wave: #f0903c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5;
+  padding-block: 24px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 24px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 1.75rem; margin: 0; text-wrap: balance; line-height: 1.2; }
+.tag { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stage { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 760px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+/* Phone */
+.phone {
+  width: 100%; max-width: 360px; aspect-ratio: 9 / 18.5; margin: 0 auto;
+  background: var(--screen); border: 10px solid #20233f; border-radius: 38px;
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  box-shadow: 0 18px 40px rgba(20, 22, 50, .18);
+}
+.bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.bar b { font-weight: 600; }
+.bar .lang { font-size: .78rem; color: var(--teal); border: 1px solid var(--teal); border-radius: 999px; padding: 0 8px; }
+.chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.empty { margin: auto 0; text-align: center; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-size: 1.15rem; margin-bottom: 4px; }
+.msg { max-width: 88%; padding: 10px 12px; border-radius: 16px; font-size: .92rem; }
+.msg.user { align-self: flex-end; background: var(--accent-soft); border-bottom-right-radius: 4px; }
+.msg.bot { align-self: flex-start; background: var(--bubble); border-bottom-left-radius: 4px; }
+.msg .meta { display: flex; gap: 6px; align-items: center; font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.listen { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; font: inherit; font-size: .8rem; color: var(--teal);
+  background: none; border: 1px solid var(--teal); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+
+/* Composer */
+.composer { padding: 10px 12px 14px; border-top: 1px solid var(--line); position: relative; }
+.row { display: flex; gap: 8px; align-items: flex-end; }
+.field { flex: 1; min-width: 0; background: var(--bubble); border-radius: 22px; padding: 10px 14px; min-height: 44px; font-size: .92rem; }
+.field textarea { width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; resize: none; outline: none; min-height: 22px; }
+.field textarea::placeholder { color: var(--muted); }
+.round { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+  background: var(--accent); color: #fff; touch-action: none; }
+.round.send { background: var(--ink); color: var(--screen); }
+.round:focus-visible, button:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.coach { position: absolute; right: 10px; bottom: 66px; width: 210px; background: var(--ink); color: var(--screen);
+  border-radius: 12px; padding: 10px 12px; font-size: .82rem; line-height: 1.35; }
+.coach::after { content: ""; position: absolute; right: 18px; bottom: -6px; width: 12px; height: 12px; background: var(--ink); transform: rotate(45deg); }
+.coach b { color: var(--accent); }
+.nudge { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 4px 6px 4px 12px; font-size: .82rem; width: fit-content; max-width: 100%; }
+.nudge button { font: inherit; font-size: .8rem; border: 0; border-radius: 999px; background: var(--accent); color: #fff; padding: 2px 10px; cursor: pointer; }
+
+/* Recording sheet */
+.rec { position: absolute; inset: auto 0 0 0; background: var(--panel); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0;
+  padding: 16px; display: grid; gap: 12px; box-shadow: 0 -10px 30px rgba(20, 22, 50, .12); }
+.rec .live { min-height: 72px; font-size: 1rem; }
+.rec .live .hint { color: var(--muted); }
+.wave { display: flex; gap: 3px; align-items: center; height: 34px; }
+.wave i { width: 4px; border-radius: 2px; background: var(--wave); height: 30%; animation: w 0.9s ease-in-out infinite; }
+@keyframes w { 50% { height: 100%; } }
+@media (prefers-reduced-motion: reduce) { .wave i { animation: none; height: 60%; } }
+.rec .ctrl { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; color: var(--muted); }
+.pill { font: inherit; font-size: .85rem; border-radius: 999px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--screen); color: var(--ink); }
+.pill.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.unsure { text-decoration: underline dotted var(--accent) 2px; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; color: inherit; }
+.fixes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.fixes button { font: inherit; font-size: .78rem; border: 1px solid var(--accent); color: var(--accent); background: var(--screen); border-radius: 999px; padding: 1px 10px; cursor: pointer; }
+.reviewbar { font-size: .74rem; color: var(--muted); margin: 0 4px 6px; }
+
+/* Rail */
+.rail { display: grid; gap: 16px; min-width: 0; }
+.scen { display: flex; flex-wrap: wrap; gap: 8px; }
+.scen button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 10px; padding: 6px 12px; cursor: pointer; }
+.scen button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.steps li { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; opacity: .6; transition: opacity .2s; }
+.steps li.on { opacity: 1; border-color: var(--accent); }
+.steps h3 { margin: 0 0 2px; font-size: 1rem; display: flex; gap: 10px; align-items: baseline; }
+.steps h3 span { font-family: var(--font-mono); font-size: .72rem; color: var(--accent); }
+.steps p { margin: 0; color: var(--muted); font-size: .9rem; max-width: 60ch; }
+.steps li.on p { color: var(--ink); }
+.foot { font-size: .8rem; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="tag">Concept prototype · course project · not affiliated with OpenAI</div>
+      <h1>Bolo: voice-first composer for Hindi-first students</h1>
+    </div>
+    <button class="pill" id="restart" type="button">Restart</button>
+  </div>
+
+  <div class="stage">
+    <div class="phone" aria-label="Phone prototype">
+      <div class="bar"><b>AI Assistant</b><span class="lang">हिं / Eng</span></div>
+      <div class="chat" id="chat"></div>
+      <div class="composer" id="composer"></div>
+    </div>
+
+    <div class="rail">
+      <div>
+        <div class="tag" style="margin-bottom:6px">Pick an entry point</div>
+        <div class="scen">
+          <button type="button" id="sc-discover" aria-pressed="true">First-time discovery</button>
+          <button type="button" id="sc-nudge" aria-pressed="false">Long-typing nudge</button>
+        </div>
+      </div>
+      <ol class="steps" id="steps"></ol>
+      <p class="foot">Try it: tap the orange mic for hands-free mode, or press and hold it like a WhatsApp voice note.
+        The transcript is simulated, because this page can't use your microphone.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const MIC = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const SEND = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const SPEAK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM16 9a4 4 0 0 1 0 6"/></svg>';
+
+const SCRIPT = {
+  discover: { words: "Photosynthesis mein clorofil ka kya role hai? Simple Hindi mein samjhao, exam ke liye.".split(" "),
+              unsure: "clorofil", fixes: ["chlorophyll", "chloroform"], right: "chlorophyll" },
+  nudge: { words: "Newton ka third law real life mein kaise apply hota hai, do teen examples ke saath batao".split(" "),
+           unsure: null },
+  typed: "bhai mujhe ye samjhao ki newton ka third law real life mein kaise apply hota h examples ke sath",
+};
+const ANSWER = {
+  discover: "Chlorophyll ek green pigment hai jo leaves ke chloroplast mein hota hai. Ye sunlight absorb karta hai, aur usi energy se plant CO₂ aur paani ko glucose mein badalta hai. Chlorophyll ke bina photosynthesis ho hi nahi sakta.\n\nExam tip: diagram mein chloroplast label karna mat bhoolna.",
+  nudge: "Third law: har action ka equal aur opposite reaction hota hai.\n\n1. Chalte waqt pair zameen ko peeche dhakelta hai, zameen aapko aage.\n2. Rocket gas ko neeche phenkta hai, gas rocket ko upar.\n3. Boat se jump karo toh boat peeche khisakti hai.",
+};
+const STEPS = [
+  { id: "home", n: "01", t: "Discover", d: {
+      discover: "When the text box is empty, the send button becomes a mic (the pattern users know from WhatsApp). A one-time Hinglish coachmark says voice understands mixed language.",
+      nudge: "The user is typing a long question in Roman-script Hindi. After 60+ characters and a few backspaces, a chip offers voice. It shows at most once a day." } },
+  { id: "rec", n: "02", t: "Speak", d: { all: "A live transcript appears as they talk, proving early that it understands Hinglish. Tap for hands-free, hold for walkie-talkie. Speaking quietly works, and Cancel is always one tap away." } },
+  { id: "review", n: "03", t: "Review", d: { all: "The transcript lands as editable text and is never auto-sent, which addresses the need for control (H4). Unsure words are underlined with one-tap fixes, and corrections feed accuracy." } },
+  { id: "answer", n: "04", t: "Answer", d: { all: "The reply comes in the same language mix, with an optional Listen button. The next turn keeps the mic as the default, building the habit." } },
+];
+
+let scen = "discover", state = "home", transcript = [], timer = null, held = false, downAt = 0, fixed = false, coachSeen = false;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function renderSteps() {
+  $("steps").innerHTML = STEPS.map((s) => `<li class="${s.id === state ? "on" : ""}"><h3><span>${s.n}</span>${s.t}</h3><p>${s.d.all || s.d[scen]}</p></li>`).join("");
+}
+
+function renderChat() {
+  const c = $("chat");
+  if (state !== "answer") {
+    c.innerHTML = `<div class="empty"><strong>Aaj kya padhna hai?</strong>Type karo ya bolo, Hindi, English ya dono.</div>`;
+    return;
+  }
+  const q = finalText();
+  c.innerHTML = `<div class="msg user">${esc(q)}<div class="meta">${MIC.replace(/20/g, "12")} Bola gaya</div></div>
+    <div class="msg bot">${esc(ANSWER[scen]).replace(/\n/g, "<br>")}<br><button class="listen" type="button">${SPEAK} Suno</button></div>`;
+  c.scrollTop = c.scrollHeight;
+}
+
+function finalText() {
+  const t = SCRIPT[scen];
+  return t.words.join(" ").replace(t.unsure || "\u0000", fixed ? t.right : t.unsure);
+}
+
+function renderComposer() {
+  const el = $("composer");
+  if (state === "home" || state === "answer") {
+    const typing = scen === "nudge" && state === "home";
+    el.innerHTML = `
+      ${typing ? `<div class="nudge">Lamba sawaal? Bolke poochho, 3x faster <button type="button" id="nudgeGo">Bolo</button></div>` : ""}
+      <div class="row">
+        <label class="field"><span class="tag" style="position:absolute;left:-9999px">Message</span>
+          <textarea id="ta" rows="${typing ? 3 : 1}" placeholder="Bolo ya likho…">${typing ? SCRIPT.typed : ""}</textarea></label>
+        <button class="round ${typing ? "send" : ""}" id="mic" type="button" aria-label="${typing ? "Send" : "Hold to speak, or tap for hands-free"}">${typing ? SEND : MIC}</button>
+      </div>
+      ${state === "home" && scen === "discover" && !coachSeen ? `<div class="coach"><b>Naya:</b> Hold karke bolo. Hindi, English, Hinglish, sab samajh aata hai.</div>` : ""}`;
+    if (typing) {
+      $("nudgeGo").onclick = () => startRec(false);
+    } else bindMic();
+  } else if (state === "rec") {
+    el.innerHTML = `<div class="rec" role="status" aria-live="polite">
+        <div class="wave">${Array.from({ length: 28 }, (_, i) => `<i style="animation-delay:${(i % 7) * 0.11}s"></i>`).join("")}</div>
+        <div class="live">${transcript.length ? esc(transcript.join(" ")) : '<span class="hint">Sun raha hoon… bolo</span>'}</div>
+        <div class="ctrl">
+          <button class="pill" id="cancel" type="button">Cancel</button>
+          <span>${held ? "Chhodo to finish" : "Hands-free on"}</span>
+          ${held ? "" : '<button class="pill primary" id="done" type="button">Done</button>'}
+        </div></div>`;
+    $("cancel").onclick = cancelRec;
+    if (!held) $("done").onclick = finishRec;
+  } else if (state === "review") {
+    const t = SCRIPT[scen];
+    const html = t.words.map((w) => {
+      const clean = w.replace(/[?,.]/g, "");
+      if (t.unsure && clean === t.unsure && !fixed) return `<button class="unsure" id="uw" type="button">${esc(w)}</button>`;
+      if (t.unsure && clean === t.unsure && fixed) return esc(w.replace(t.unsure, t.right));
+      return esc(w);
+    }).join(" ");
+    el.innerHTML = `<div class="reviewbar">Check karo, phir bhejo. Underlined word pe tap karke sahi karo.</div>
+      <div class="row"><div class="field" id="rv">${html}<div class="fixes" id="fx" hidden>${(t.fixes || []).map((f) => `<button type="button" data-f="${f}">${f}</button>`).join("")}</div></div>
+      <button class="round send" id="send" type="button" aria-label="Send">${SEND}</button></div>`;
+    const uw = $("uw");
+    if (uw) uw.onclick = () => { $("fx").hidden = false; };
+    el.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { fixed = b.dataset.f === t.right; if (fixed) render(); }));
+    $("send").onclick = () => { state = "answer"; render(); };
+  }
+}
+
+function bindMic() {
+  const m = $("mic");
+  m.addEventListener("pointerdown", (e) => { e.preventDefault(); downAt = Date.now(); coachSeen = true; startRec(true); });
+}
+document.addEventListener("pointerup", () => {
+  if (state !== "rec" || !held) return;
+  if (Date.now() - downAt < 450) { held = false; renderComposer(); }   // quick tap → hands-free
+  else finishRec();
+});
+document.addEventListener("keydown", (e) => {
+  if (state === "home" && document.activeElement && document.activeElement.id === "mic" && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault(); coachSeen = true; startRec(false);
+  }
+});
+
+function startRec(isHold) {
+  state = "rec"; held = isHold; transcript = []; fixed = false;
+  render();
+  const words = SCRIPT[scen].words; let i = 0;
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (i < words.length) { transcript.push(words[i++]); const live = document.querySelector(".rec .live"); if (live) live.textContent = transcript.join(" "); }
+    else clearInterval(timer);
+  }, 260);
+}
+function finishRec() { clearInterval(timer); transcript = SCRIPT[scen].words.slice(); state = "review"; render(); }
+function cancelRec() { clearInterval(timer); state = "home"; render(); }
+
+function render() { renderSteps(); renderChat(); renderComposer(); }
+function setScen(s) {
+  scen = s; state = "home"; coachSeen = false; clearInterval(timer);
+  $("sc-discover").setAttribute("aria-pressed", s === "discover");
+  $("sc-nudge").setAttribute("aria-pressed", s === "nudge");
+  render();
+}
+$("sc-discover").onclick = () => setScen("discover");
+$("sc-nudge").onclick = () => setScen("nudge");
+$("restart").onclick = () => setScen(scen);
+render();
+</script>
